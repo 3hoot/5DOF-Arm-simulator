@@ -1,14 +1,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(5DOF-Arm-simulator)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 include(FetchContent) 
-# Fetch spdlog
-FetchContent_Declare(
-  spdlog
-  GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.13.0
-)
-FetchContent_MakeAvailable(spdlog)
 
 # Fetch Eigen3
 FetchContent_Declare(
@@ -27,7 +24,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(raylib)
 
 set(THIRD_PARTY_LIBS 
-  spdlog::spdlog
   Eigen3::Eigen
   raylib
 )

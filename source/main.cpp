@@ -1,14 +1,14 @@
-#include "config.hpp"
-#include "renderer.hpp"
-#include "simulation.hpp"
+#include "robot_arm/core/robot.hpp"
+#include "robot_arm/core/config.hpp"
+#include "robot_arm/sim/simulator.hpp"
 
 int main()
 {
-    Config &config = Config::instance();
-    Renderer &renderer = Renderer::instance(config.WINDOW_WIDTH, config.WINDOW_HEIGHT,
-                                            config.WINDOW_TITLE, config.FPS, config.CAMERA_FOV);
-    Simulation simulation(config, renderer);
-    simulation.run();
+    using namespace robot_arm;
+    core::Robot robot(core::config::ROBOT_JOINTS);
+    sim::Simulator simulator(robot, true);
+
+    simulator.run();
 
     return 0;
 }
