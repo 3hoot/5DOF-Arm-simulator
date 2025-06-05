@@ -19,6 +19,7 @@ namespace robot_arm::core
 
         // Getters
         const std::vector<Eigen::Matrix4d> &getTransformationMatrices() const { return transformation_matrices_; }
+        const std::vector<std::pair<Eigen::Matrix4d, Eigen::Matrix4d>> &getJointOffsets() const { return joint_offsets_; }
         const std::vector<double> &getJointSettings() const { return joint_settings_; };
 
         // Setters
@@ -27,7 +28,9 @@ namespace robot_arm::core
         bool setJointSetting(size_t joint_index, double setting);
 
     private:
-        std::vector<Joint> joints_ = {};                            // List of joints in the robot arm
+        std::vector<Joint> joints_ = {}; // List of joints in the robot arm
+        std::vector<std::pair<Eigen::Matrix4d, Eigen::Matrix4d>> joint_offsets_ = {};
+
         std::vector<Eigen::Matrix4d> transformation_matrices_ = {}; // Global transformation matrices
                                                                     // for each joint
         std::vector<double> joint_settings_ = {};                   // Current settings for each joint
@@ -37,6 +40,7 @@ namespace robot_arm::core
         // Helper function to update the transformation matrices after setting a joint's setting
         // Updates the transformation matrices for all joints from the specified joint index
         void updateTransformationMatrices(size_t joint_index);
+        void updateJointOffsets(size_t joint_index);
     };
 }
 

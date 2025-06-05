@@ -9,8 +9,29 @@
 
 namespace robot_arm::sim::utils
 {
+    Transform Transform::operator*(const Transform &other) const
+    {
+        // Convert this Transform to a 4x4 matrix
+        Eigen::AngleAxisd aa1(rotation_angle * std::numbers::pi / 180.0f,
+                              Eigen::Vector3d(rotation_axis.x, rotation_axis.y, rotation_axis.z));
+        Eigen::Matrix4d mat1 = Eigen::Matrix4d::Identity();
+        mat1.block<3, 3>(0, 0) = aa1.toRotationMatrix();
+        mat1.block<3, 1>(0, 3) = Eigen::Vector3d(position.x, position.y, position.z);
+
+        // Convert other Transform to a 4x4 matrix
+        Eigen::AngleAxisd aa2(other.rotation_angle * std::numbers::pi / 180.0f,
+                              Eigen::Vector3d(other.rotation_axis.x, other.rotation_axis.y, other.rotation_axis.z));
+        Eigen::Matrix4d mat2 = Eigen::Matrix4d::Identity();
+        mat2.block<3, 3>(0, 0) = aa2.toRotationMatrix();
+        mat2.block<3, 1>(0, 3) = Eigen::Vector3d(other.position.x, other.position.y, other.position.z);
+
+        // Combine
+        Eigen::Matrix4d combined = mat1 * mat2;
+
+        return toTransform(combined);
+    }
+
     Transform toTransform(const Eigen::Matrix4d &matrix,
-                          const Vector3 &scale,
                           double symmetry_treshold,
                           double identity_treshold)
     {

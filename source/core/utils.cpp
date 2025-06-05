@@ -1,14 +1,15 @@
 #include <Eigen/Dense>
 #include <utility>
 #include <cmath>
+#include <iostream>
 
 #include "robot_arm/core/utils.hpp"
 #include "robot_arm/core/joint.hpp"
 
 namespace robot_arm::core::utils
 {
-    bool jointIntersect(const Joint &joint1, const Eigen::Vector3d &pos1,
-                        const Joint &joint2, const Eigen::Vector3d &pos2)
+    bool jointIntersect(const Eigen::Vector3d &pos1a, const Eigen::Vector3d &pos1b, double radius1,
+                        const Eigen::Vector3d &pos2a, const Eigen::Vector3d &pos2b, double radius2)
     {
         // Implementation of the intersection check between two joints
         // as specified in the article "Robust Computation of Distance Between Line Segments"
@@ -16,10 +17,10 @@ namespace robot_arm::core::utils
         // link: https://www.geometrictools.com/Documentation/DistanceLine3Line3.pdf
 
         // Get the start and end points of the lines representing the joints
-        Eigen::Vector3d A0 = pos1 + joint1.getOffsets().first;
-        Eigen::Vector3d A1 = pos1 + joint1.getOffsets().second;
-        Eigen::Vector3d B0 = pos2 + joint2.getOffsets().first;
-        Eigen::Vector3d B1 = pos2 + joint2.getOffsets().second;
+        const Eigen::Vector3d &A0 = pos1a;
+        const Eigen::Vector3d &A1 = pos1b;
+        const Eigen::Vector3d &B0 = pos2a;
+        const Eigen::Vector3d &B1 = pos2b;
 
         double a = (A1 - A0).dot(A1 - A0);
         double b = (A1 - A0).dot(B1 - B0);
@@ -121,7 +122,10 @@ namespace robot_arm::core::utils
         }
 
         double dist = std::sqrt(R(s, t));
-        return dist < (joint1.getCollisionRadius() + joint2.getCollisionRadius());
+
+        std::cout << "dist: " << dist << " min_dist: " << (radius1 + radius2) << '\n';
+
+        return dist < (radius1 + radius2);
     }
 
     Eigen::Matrix4d calculateTransformationMatrix(const DHParameters &parameters)

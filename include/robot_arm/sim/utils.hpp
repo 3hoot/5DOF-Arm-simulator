@@ -15,6 +15,9 @@ namespace robot_arm::sim::utils
         Vector3 position = {0.0f, 0.0f, 0.0f};      // Position of the object in the world
         Vector3 rotation_axis = {0.0f, 0.0f, 1.0f}; // Rotation of the object in the world
         float rotation_angle = 0.0f;                // Angle of rotation around the axis in degrees
+
+        // Overload the multiplication operator to apply the transformation to a Vector3
+        Transform operator*(const Transform &other) const;
     };
 
     struct FusionModel
@@ -27,7 +30,6 @@ namespace robot_arm::sim::utils
 
     // Converts an Eigen matrix to a Raylib Transform
     Transform toTransform(const Eigen::Matrix4d &matrix,
-                          const Vector3 &scale = {1.0f, 1.0f, 1.0f},
                           double symmetry_treshold = 0.001,
                           double identity_treshold = 0.001);
 

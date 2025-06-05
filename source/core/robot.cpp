@@ -16,6 +16,10 @@ namespace robot_arm::core
         transformation_matrices_.resize(joints.size());
         updateTransformationMatrices(0);
 
+        joint_offsets_.resize(joints.size());
+        updateJointOffsets(0);
+
+        // Initialize the joint offsets
         joint_settings_.reserve(joints.size());
         for (const auto &joint : joints_)
             joint_settings_.push_back(joint.getSetting());
@@ -29,6 +33,28 @@ namespace robot_arm::core
             const Joint &joint = joints_[i];
             Eigen::Matrix4d prev_matrix = (i == 0 ? Eigen::Matrix4d::Identity() : transformation_matrices_[i - 1]);
             transformation_matrices_[i] = prev_matrix * joint.getTransformationMatrix();
+        }
+    }
+
+    void Robot::updateJointOffsets(size_t joint_index)
+    {
+        // Update the joint offsets for all joints from the specified joint index
+        for (size_t i = joint_index; i < joints_.size(); ++i)
+        {
+            const Joint &joint = joints_[i];
+            Eigen::Matrix4d transformation_matrix = transformation_matrices_[i];
+
+            Eigen::Vector3d offset_start = joint.getOffsets().first;
+            Eigen::Matrix4d offset_start_matrix = Eigen::Matrix4d::Identity();
+            offset_start_matrix.block<3, 1>(0, 3) = offset_start;
+            offset_start_matrix = transformation_matrix * offset_start_matrix;
+
+            Eigen::Vector3d offset_end = joint.getOffsets().second;
+            Eigen::Matrix4d offset_end_matrix = Eigen::Matrix4d::Identity();
+            offset_end_matrix.block<3, 1>(0, 3) = offset_end;
+            offset_end_matrix = transformation_matrix * offset_end_matrix;
+
+            joint_offsets_[i] = {offset_start_matrix, offset_end_matrix};
         }
     }
 
@@ -71,7 +97,9 @@ namespace robot_arm::core
             return false; // Setting failed, e.g. for static joints
 
         // Update the transformation matrices from the specified joint index
+        joint_settings_[joint_index] = setting;
         updateTransformationMatrices(joint_index);
+        updateJointOffsets(joint_index);
 
         // Check for collisions
         for (size_t i = 0; i < joints_.size(); ++i)
@@ -79,15 +107,20 @@ namespace robot_arm::core
             if (i == joint_index || i == joint_index - 1 || i == joint_index + 1)
                 continue; // Skip the current joint and its immediate neighbors
 
-            const Joint &other_joint = joints_[i];
-            Eigen::Vector3d pos1 = transformation_matrices_[joint_index].block<3, 1>(0, 3);
-            Eigen::Vector3d pos2 = transformation_matrices_[i].block<3, 1>(0, 3);
+            Eigen::Vector3d pos1a = joint_offsets_[joint_index].first.block<3, 1>(0, 3);
+            Eigen::Vector3d pos1b = joint_offsets_[joint_index].second.block<3, 1>(0, 3);
+            Eigen::Vector3d pos2a = joint_offsets_[i].first.block<3, 1>(0, 3);
+            Eigen::Vector3d pos2b = joint_offsets_[i].second.block<3, 1>(0, 3);
 
-            if (utils::jointIntersect(joint, pos1, other_joint, pos2))
+            if (utils::jointIntersect(pos1a, pos1b, joint.getCollisionRadius(),
+                                      pos2a, pos2b, joints_[i].getCollisionRadius()))
             {
                 // If a collision is detected, revert the joint's setting
                 joint.setSetting(prev_setting);
-                updateTransformationMatrices(static_cast<size_t>(joint_index));
+                joint_settings_[joint_index] = prev_setting;
+                updateTransformationMatrices(joint_index);
+                updateJointOffsets(joint_index);
+
                 return false; // Collision detected, setting not applied
             }
         }
