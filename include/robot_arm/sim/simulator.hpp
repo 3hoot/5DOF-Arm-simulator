@@ -34,6 +34,7 @@ namespace robot_arm::sim
     private:
         // Robot instance to simulate
         core::Robot &robot_;
+        double delta_time_ = 0.01; // Time step for the simulation [s]
 
         // Flag to enable or disable debug mode
         bool enable_debug_;
@@ -51,10 +52,8 @@ namespace robot_arm::sim
         // Updates the transformation matrices of the robot models based on the robot's current state
         void updateRobotModels();
 
-        // Primitive models for the robot arm
-        // 0 for cube primitive
-        // 1 for sphere primitive
-        // std::vector<FusionModel> primitive_models_;
+        // Spatial cursor for the simulator
+        Vector3 cursor3D_; // Current position of the cursor in the world
     };
 }
 

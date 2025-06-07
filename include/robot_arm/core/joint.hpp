@@ -27,8 +27,6 @@ namespace robot_arm::core
     {
     public:
         Joint(const DHParameters &dh_params, const JointType type,
-              std::pair<Eigen::Vector3d, Eigen::Vector3d> joint_offsets = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}},
-              double collision_radius = 0.0,
               std::pair<double, double> setting_range = {0.0, 0.0});
 
         // Getters
@@ -37,9 +35,6 @@ namespace robot_arm::core
         // Returns the transformation matrix of the joint, actual state
         const Eigen::Matrix4d &getTransformationMatrix() const { return transformation_matrix_; }
         JointType getType() const { return type_; }
-
-        std::pair<Eigen::Vector3d, Eigen::Vector3d> getOffsets() const { return joint_offsets_; }
-        double getCollisionRadius() const { return collision_radius_; }
 
         std::pair<double, double> getSettingRange() const { return setting_range_; }
         double getSetting() const { return setting_; }
@@ -51,9 +46,6 @@ namespace robot_arm::core
         DHParameters dh_params_;
         Eigen::Matrix4d transformation_matrix_;
         JointType type_;
-
-        std::pair<Eigen::Vector3d, Eigen::Vector3d> joint_offsets_;
-        double collision_radius_ = 0.0;
 
         std::pair<double, double> setting_range_;
         double setting_ = 0.0;

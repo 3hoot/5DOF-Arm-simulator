@@ -22,7 +22,8 @@ namespace robot_arm::core::config
         {16.4645, 0.0, 0.0, -std::numbers::pi / 2},                // Joint 3
         {16.4645, 0.0, 0.0, std::numbers::pi / 2},                 // Joint 4
         {0.0, std::numbers::pi / 2, 0.0, 0.0},                     // Joint 5
-        {0.0, 0.0, 2.25, 0.0}                                      // Joint 6 - End effector
+        {0.0, 0.0, 3.5, 0.0},                                      // Joint 6 - End effector
+        {0.0, 0.0, 2.0, 0.0}                                       // Joint 7 - End effector offset
     };
     const std::vector<JointType> JOINT_TYPES = {
         JointType::Static,   // Joint 0 - Base
@@ -31,34 +32,18 @@ namespace robot_arm::core::config
         JointType::Revolute, // Joint 3
         JointType::Revolute, // Joint 4
         JointType::Revolute, // Joint 5
-        JointType::Static    // Joint 6 - End effector
-    };
-    const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> JOINT_OFFSETS = {
-        {{0.0, 0.0, 0.0}, {0.0, 0.0, 7.5}},      // Joint 0 - Base
-        {{6.9645, 0.0, 0.0}, {-5.0, 0.0, -5.0}}, // Joint 1
-        {{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}},     // Joint 2
-        {{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}},     // Joint 3
-        {{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}},     // Joint 4
-        {{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}},     // Joint 5
-        {{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}}      // Joint 6 - End effector
+        JointType::Static,   // Joint 6 - End effector
+        JointType::Static    // Joint 7 - End effector offset
     };
     const std::vector<std::pair<double, double>> JOINT_SETTINGS_RANGE = {
-        {0.0, 0.0},                                    // Joint 0 - Base
-        {-std::numbers::pi, std::numbers::pi},         // Joint 1
-        {-std::numbers::pi / 2, std::numbers::pi / 2}, // Joint 2
-        {-std::numbers::pi / 4, std::numbers::pi},     // Joint 3
-        {-std::numbers::pi / 2, std::numbers::pi / 2}, // Joint 4
-        {-std::numbers::pi, std::numbers::pi},         // Joint 5
-        {0.0, 0.0}                                     // Joint 6 - End effector
-    };
-    const std::vector<double> JOINT_COLLISION_RADIUS = {
-        2.5, // Joint 0 - Base
-        2.5, // Joint 1
-        2.0, // Joint 2
-        2.0, // Joint 3
-        2.0, // Joint 4
-        2.0, // Joint 5
-        2.0  // Joint 6 - End effector
+        {0.0, 0.0},                                            // Joint 0 - Base
+        {-std::numbers::pi, std::numbers::pi},                 // Joint 1
+        {-std::numbers::pi / 2, std::numbers::pi / 2},         // Joint 2
+        {-std::numbers::pi / 4, std::numbers::pi},             // Joint 3
+        {-3 * std::numbers::pi / 4, 3 * std::numbers::pi / 4}, // Joint 4
+        {-std::numbers::pi, std::numbers::pi},                 // Joint 5
+        {0.0, 0.0},                                            // Joint 6 - End effector
+        {0.0, 0.0}                                             // Joint 7 - End effector offset
     };
 
     // Robot parameters
@@ -66,11 +51,8 @@ namespace robot_arm::core::config
     {
         std::vector<Joint> joints;
         for (size_t i = 0; i < JOINT_PARAMETERS.size(); ++i)
-        {
-            joints.emplace_back(JOINT_PARAMETERS[i], JOINT_TYPES[i],
-                                JOINT_OFFSETS[i], JOINT_COLLISION_RADIUS[i],
-                                JOINT_SETTINGS_RANGE[i]);
-        }
+            joints.emplace_back(JOINT_PARAMETERS[i], JOINT_TYPES[i], JOINT_SETTINGS_RANGE[i]);
+
         return joints;
     }();
 }

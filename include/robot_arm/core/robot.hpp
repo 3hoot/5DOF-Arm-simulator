@@ -19,7 +19,6 @@ namespace robot_arm::core
 
         // Getters
         const std::vector<Eigen::Matrix4d> &getTransformationMatrices() const { return transformation_matrices_; }
-        const std::vector<std::pair<Eigen::Matrix4d, Eigen::Matrix4d>> &getJointOffsets() const { return joint_offsets_; }
         const std::vector<double> &getJointSettings() const { return joint_settings_; };
 
         // Setters
@@ -27,10 +26,19 @@ namespace robot_arm::core
         bool removeEffector();
         bool setJointSetting(size_t joint_index, double setting);
 
-    private:
-        std::vector<Joint> joints_ = {}; // List of joints in the robot arm
-        std::vector<std::pair<Eigen::Matrix4d, Eigen::Matrix4d>> joint_offsets_ = {};
+        // IK methods
+        // This one is hardcoded for THIS particular robot arm, but can be generalized later
+        Eigen::Matrix<double, 6, 3> computeJacobian3() const;
+        Eigen::Vector3d computeJointChanges3(const Eigen::Vector3d &pos_err, double lambda) const;
+        // Computes the twist vector for the robot arm to reach a target transform
+        Eigen::Vector<double, 6> computePositionTwist(const Eigen::Matrix4d &target_transform) const;
 
+        // Solves the inverse kinematics for the robot arm to reach a target pose
+        bool solveIK(const Eigen::Matrix4d &target_pose,
+                     int max_iters, double tolerance);
+
+    private:
+        std::vector<Joint> joints_ = {};                            // List of joints in the robot arm
         std::vector<Eigen::Matrix4d> transformation_matrices_ = {}; // Global transformation matrices
                                                                     // for each joint
         std::vector<double> joint_settings_ = {};                   // Current settings for each joint
@@ -40,7 +48,6 @@ namespace robot_arm::core
         // Helper function to update the transformation matrices after setting a joint's setting
         // Updates the transformation matrices for all joints from the specified joint index
         void updateTransformationMatrices(size_t joint_index);
-        void updateJointOffsets(size_t joint_index);
     };
 }
 

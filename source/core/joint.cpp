@@ -8,11 +8,8 @@ namespace robot_arm::core
 {
     // Joint class implementation
     Joint::Joint(const DHParameters &dh_params, const JointType type,
-                 std::pair<Eigen::Vector3d, Eigen::Vector3d> joint_offsets,
-                 double collision_radius,
                  std::pair<double, double> setting_range)
         : dh_params_(dh_params), type_(type),
-          joint_offsets_(joint_offsets), collision_radius_(collision_radius),
           setting_range_(setting_range)
     {
         // Initialize the transformation matrix using the DH parameters

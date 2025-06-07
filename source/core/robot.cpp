@@ -1,6 +1,8 @@
 #include <vector>
 #include <numbers>
 #include <Eigen/Dense>
+#include <cmath>
+#include <algorithm>
 
 #include "robot_arm/core/robot.hpp"
 #include "robot_arm/core/joint.hpp"
@@ -16,9 +18,6 @@ namespace robot_arm::core
         transformation_matrices_.resize(joints.size());
         updateTransformationMatrices(0);
 
-        joint_offsets_.resize(joints.size());
-        updateJointOffsets(0);
-
         // Initialize the joint offsets
         joint_settings_.reserve(joints.size());
         for (const auto &joint : joints_)
@@ -33,28 +32,6 @@ namespace robot_arm::core
             const Joint &joint = joints_[i];
             Eigen::Matrix4d prev_matrix = (i == 0 ? Eigen::Matrix4d::Identity() : transformation_matrices_[i - 1]);
             transformation_matrices_[i] = prev_matrix * joint.getTransformationMatrix();
-        }
-    }
-
-    void Robot::updateJointOffsets(size_t joint_index)
-    {
-        // Update the joint offsets for all joints from the specified joint index
-        for (size_t i = joint_index; i < joints_.size(); ++i)
-        {
-            const Joint &joint = joints_[i];
-            Eigen::Matrix4d transformation_matrix = transformation_matrices_[i];
-
-            Eigen::Vector3d offset_start = joint.getOffsets().first;
-            Eigen::Matrix4d offset_start_matrix = Eigen::Matrix4d::Identity();
-            offset_start_matrix.block<3, 1>(0, 3) = offset_start;
-            offset_start_matrix = transformation_matrix * offset_start_matrix;
-
-            Eigen::Vector3d offset_end = joint.getOffsets().second;
-            Eigen::Matrix4d offset_end_matrix = Eigen::Matrix4d::Identity();
-            offset_end_matrix.block<3, 1>(0, 3) = offset_end;
-            offset_end_matrix = transformation_matrix * offset_end_matrix;
-
-            joint_offsets_[i] = {offset_start_matrix, offset_end_matrix};
         }
     }
 
@@ -97,34 +74,121 @@ namespace robot_arm::core
             return false; // Setting failed, e.g. for static joints
 
         // Update the transformation matrices from the specified joint index
-        joint_settings_[joint_index] = setting;
         updateTransformationMatrices(joint_index);
-        updateJointOffsets(joint_index);
 
-        // Check for collisions
-        for (size_t i = 0; i < joints_.size(); ++i)
+        // Check if any of the joint after the specified joint has a collision with the ground plane
+        for (size_t i = joint_index + 1; i < joints_.size(); ++i)
         {
-            if (i == joint_index || i == joint_index - 1 || i == joint_index + 1)
-                continue; // Skip the current joint and its immediate neighbors
-
-            Eigen::Vector3d pos1a = joint_offsets_[joint_index].first.block<3, 1>(0, 3);
-            Eigen::Vector3d pos1b = joint_offsets_[joint_index].second.block<3, 1>(0, 3);
-            Eigen::Vector3d pos2a = joint_offsets_[i].first.block<3, 1>(0, 3);
-            Eigen::Vector3d pos2b = joint_offsets_[i].second.block<3, 1>(0, 3);
-
-            if (utils::jointIntersect(pos1a, pos1b, joint.getCollisionRadius(),
-                                      pos2a, pos2b, joints_[i].getCollisionRadius()))
+            const double MIN_GROUND_CLEARANCE = 5.0; // Minimum clearance above the ground plane
+            const Eigen::Matrix4d &matrix = transformation_matrices_[i];
+            // Check if the joint's position is below the ground plane (z < 0)
+            if (matrix(2, 3) < MIN_GROUND_CLEARANCE)
             {
-                // If a collision is detected, revert the joint's setting
+                // Reset the joint setting to the previous value
                 joint.setSetting(prev_setting);
-                joint_settings_[joint_index] = prev_setting;
                 updateTransformationMatrices(joint_index);
-                updateJointOffsets(joint_index);
-
-                return false; // Collision detected, setting not applied
+                return false; // Collision detected, revert the setting
             }
         }
+
+        joint_settings_[joint_index] = setting;
         return true; // Successfully set the joint setting without collisions
     }
 
+    // Compute a 6x3 Jacobian for the first 3 joints only
+    Eigen::Matrix<double, 6, 3> Robot::computeJacobian3() const
+    {
+        using Mat4 = Eigen::Matrix4d;
+        using Mat3 = Eigen::Matrix3d;
+        using Vec3 = Eigen::Vector3d;
+
+        std::vector<Mat4> matrices = {
+            Mat4::Identity(), // Base
+            transformation_matrices_[1],
+            transformation_matrices_[2],
+            transformation_matrices_[3],
+            transformation_matrices_.back() // End effector
+        };
+
+        Eigen::Matrix<double, 6, 3> jacobian;
+        const Vec3 &last_P = matrices.back().block<3, 1>(0, 3);
+
+        for (size_t i = 0; i < 3; ++i)
+        {
+            const Mat4 &T = matrices[i];
+            const Vec3 &P = T.block<3, 1>(0, 3);
+            const Mat3 &R = T.block<3, 3>(0, 0);
+            Vec3 z_axis = R * Vec3(0, 0, 1); // Joint axis in world frame
+
+            jacobian.block<3, 1>(0, i) = z_axis.cross(last_P - P); // linear
+            jacobian.block<3, 1>(3, i) = z_axis;                   // angular
+        }
+
+        return jacobian;
+    }
+
+    Eigen::Vector<double, 6> Robot::computePositionTwist(const Eigen::Matrix4d &target_transform) const
+    {
+        // Position error in world frame
+        Eigen::Vector3d pos_err = target_transform.block<3, 1>(0, 3) - transformation_matrices_.back().block<3, 1>(0, 3);
+
+        // Set orientation error to zero for position-only IK
+        return (Eigen::Vector<double, 6>() << pos_err, Eigen::Vector3d::Zero()).finished();
+    }
+
+    // Compute joint changes for the first 3 joints, position-only
+    Eigen::Vector3d Robot::computeJointChanges3(const Eigen::Vector3d &pos_err, double lambda) const
+    {
+        Eigen::Matrix<double, 6, 3> jacobian = computeJacobian3();
+        Eigen::Matrix<double, 3, 3> J_pos = jacobian.block<3, 3>(0, 0);
+
+        // Damped least squares pseudo-inverse
+        Eigen::Matrix3d identity = Eigen::Matrix3d::Identity();
+        Eigen::Matrix3d JtJ = J_pos.transpose() * J_pos;
+        Eigen::Matrix3d damped = JtJ + lambda * lambda * identity;
+        Eigen::Matrix3d J_pinv = damped.inverse() * J_pos.transpose();
+
+        return J_pinv * pos_err;
+    }
+
+    // The fixed IK solver: only first 3 joints move, only position is considered
+    bool Robot::solveIK(const Eigen::Matrix4d &target_pose, int max_iters, double tolerance)
+    {
+        for (int iter = 0; iter < max_iters; ++iter)
+        {
+            Eigen::Matrix4d current_pose = transformation_matrices_.back();
+            Eigen::Vector3d pos_err = target_pose.block<3, 1>(0, 3) - current_pose.block<3, 1>(0, 3);
+            if (pos_err.norm() < tolerance)
+                return true;
+
+            double lambda = (pos_err.norm() < 0.1) ? 1.0 : 0.5;
+            Eigen::Vector3d joint_changes = computeJointChanges3(pos_err, lambda);
+
+            double alpha = std::clamp(pos_err.norm(), 0.01, 0.2);
+            double max_step = 0.2;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                size_t joint_index = i + 1;
+                double joint_min = joints_[joint_index].getSettingRange().first;
+                double joint_max = joints_[joint_index].getSettingRange().second;
+                double current = joint_settings_[joint_index];
+                double center = 0.5 * (joint_min + joint_max);
+                double bias = 0.01 * (center - current);
+                double delta = std::clamp(alpha * (joint_changes[i] + bias), -max_step, max_step);
+
+                double tentative = current + delta;
+                tentative = std::clamp(tentative, joint_min, joint_max);
+                delta = tentative - current;
+
+                setJointSetting(joint_index, current + delta);
+            }
+            updateTransformationMatrices(0);
+        }
+        // Final check
+        Eigen::Matrix4d final_pose = transformation_matrices_.back();
+        Eigen::Vector3d final_pos = final_pose.block<3, 1>(0, 3);
+        Eigen::Vector3d target_pos = target_pose.block<3, 1>(0, 3);
+        return (final_pos - target_pos).norm() < tolerance;
+    }
 }

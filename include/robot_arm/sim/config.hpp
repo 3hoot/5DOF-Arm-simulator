@@ -21,11 +21,11 @@ namespace robot_arm::sim::config
     constexpr std::string_view WINDOW_TITLE = "Robot Arm Simulator"; // Title of the Raylib window
 
     // Camera configuration
-    constexpr float CAMERA_FOVY = 45.0f;                      // Field of view in Y direction for the camera
-    constexpr Vector3 CAMERA_POSITION = {20.0f, 10.0f, 0.0f}; // Initial camera position
-    constexpr Vector3 CAMERA_TARGET = {0.0f, 0.0f, 0.0f};     // Initial camera target position
-    constexpr Vector3 CAMERA_UP = {0.0f, 1.0f, 0.0f};         // Up direction for the camera
-    constexpr int CAMERA_PROJECTION = CAMERA_PERSPECTIVE;     // Camera projection type
+    constexpr float CAMERA_FOVY = 45.0f;                       // Field of view in Y direction for the camera
+    constexpr Vector3 CAMERA_POSITION = {30.0f, 30.0f, 30.0f}; // Initial camera position
+    constexpr Vector3 CAMERA_TARGET = {0.0f, 30.0f, 0.0f};     // Initial camera target position
+    constexpr Vector3 CAMERA_UP = {0.0f, 1.0f, 0.0f};          // Up direction for the camera
+    constexpr int CAMERA_PROJECTION = CAMERA_PERSPECTIVE;      // Camera projection type
 
     // Robot to model pairing (Joint index to model path)
     const std::vector<std::string_view> ROBOT_MODELS = {
@@ -36,6 +36,7 @@ namespace robot_arm::sim::config
         "resources/J4.obj", // Joint 4 model
         "",                 // Joint 5 has no model (is a part of joint 4)
         "resources/J5.obj", // End effector model
+        ""                  // End effector offset model (not used, but can be added later)
     };
 
     const std::vector<utils::Transform> ROBOT_MODELS_LOCAL_TRANSFORMS = {
@@ -45,7 +46,8 @@ namespace robot_arm::sim::config
         {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f},   // Joint 3 model
         {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f},   // Joint 4 model
         {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f},   // Joint 5 model
-        {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f}    // End effector model
+        {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f},   // End effector model
+        {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f}    // End effector offset model
     };
 
     // Primitive models
