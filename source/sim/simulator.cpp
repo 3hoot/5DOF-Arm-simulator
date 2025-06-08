@@ -18,9 +18,11 @@ namespace robot_arm::sim
     Simulator::Simulator(core::Robot &robot, bool enable_debug,
                          int window_width, int window_height, const std::string_view window_title,
                          float camera_fovy, Vector3 camera_position, Vector3 camera_target,
-                         Vector3 camera_up, int camera_projection)
+                         Vector3 camera_up, int camera_projection,
+                         float object_radius, float object_mounting_distance)
         : robot_(robot), enable_debug_(enable_debug),
-          window_width_(window_width), window_height_(window_height), window_title_(window_title)
+          window_width_(window_width), window_height_(window_height), window_title_(window_title),
+          object_radius_(object_radius), object_mounting_distance_(object_mounting_distance)
     {
         // Initialize Raylib camera
         camera_.position = camera_position;
@@ -42,7 +44,7 @@ namespace robot_arm::sim
             robot_model.global_transform = utils::toTransform(robot_.getTransformationMatrices()[index]);
             robot_model.local_transform = config::ROBOT_MODELS_LOCAL_TRANSFORMS[index];
 
-            float scaling_factor = 0.1f; // Scale factor
+            float scaling_factor = 1.0f; // Scale factor
             robot_model.scale = {scaling_factor, scaling_factor, scaling_factor};
         }
 
@@ -54,7 +56,8 @@ namespace robot_arm::sim
         : Simulator(robot, config::ENABLE_DEBUG,
                     config::SCREEN_WIDTH, config::SCREEN_HEIGHT, config::WINDOW_TITLE,
                     config::CAMERA_FOVY, config::CAMERA_POSITION, config::CAMERA_TARGET,
-                    config::CAMERA_UP, config::CAMERA_PROJECTION) {}
+                    config::CAMERA_UP, config::CAMERA_PROJECTION,
+                    config::OBJECT_RADIUS, config::OBJECT_MOUNTING_DISTANCE) {}
 
     Simulator::~Simulator()
     {
@@ -65,12 +68,11 @@ namespace robot_arm::sim
     {
         while (!WindowShouldClose())
         {
+            // End effector position and orientation
             utils::Transform ee_transform = utils::toTransform(robot_.getTransformationMatrices().back());
-            Vector3 ee_to_cursor_vector = Vector3Subtract(cursor3D_, ee_transform.position);
-            float ee_to_cursor_distance = Vector3Distance(ee_transform.position, cursor3D_);
 
-            float t = 0.25f;
-            Vector3 step_target_ = Vector3Lerp(ee_transform.position, cursor3D_, t);
+            // Distance from end effector to object
+            float distance_to_object = Vector3Distance(ee_transform.position, cursor3D_);
 
             // Toggle camera controls
             if (IsCursorHidden())
@@ -112,24 +114,34 @@ namespace robot_arm::sim
                     camera_.target.y += 0.1f;   // Adjust camera target accordingly
                 }
 
-                // Move end effector
-                if (IsKeyDown(KEY_M))
+                // Spawn object at cursor position
+                if (IsKeyPressed(KEY_SPACE))
                 {
-                    Eigen::Matrix4d target_transform = Eigen::Matrix4d::Identity();
-
-                    // Only position
-                    target_transform(0, 3) = step_target_.x;
-                    target_transform(1, 3) = -step_target_.z;
-                    target_transform(2, 3) = step_target_.y;
-
-                    bool success = robot_.solveIK(target_transform, 200, 0.2);
-                    if (!success)
+                    if (!object_spawned_)
                     {
-                        std::cerr << "Failed to solve IK for target transform: "
-                                  << "x: " << step_target_.x
-                                  << " y: " << step_target_.y
-                                  << " z: " << step_target_.z << "\n";
+                        object_position_ = cursor3D_;
+                        object_spawned_ = true; // Spawn the object
                     }
+                    else
+                    {
+                        object_spawned_ = false; // Remove the object
+                    }
+                }
+
+                // Attach object to end effector
+                if (IsKeyPressed(KEY_T) && object_spawned_ && distance_to_object <= object_mounting_distance_)
+                {
+                    // Attach the object to the end effector
+                    object_attached_ = true;
+                    object_position_ = Vector3Add(
+                        ee_transform.position,
+                        Vector3Scale(ee_transform.rotation_axis, object_mounting_distance_));
+                }
+
+                // Detach object from end effector
+                if (IsKeyPressed(KEY_G) && object_attached_)
+                {
+                    object_attached_ = false; // Detach the object
                 }
             }
             else
@@ -156,8 +168,12 @@ namespace robot_arm::sim
             BeginMode3D(camera_);
             DrawGrid(50, 5.0f);
 
-            // Draw spatial cursor
-            DrawSphere(cursor3D_, 0.5f, RED);
+            // Draw primitive object if spawned
+            if (object_spawned_)
+            {
+                DrawSphere(object_position_, object_radius_, RED);
+                DrawSphereWires(object_position_, object_radius_, 16, 16, MAROON);
+            }
 
             // Draw robot
             for (size_t i = 0; i < robot_.getTransformationMatrices().size(); ++i)
@@ -169,15 +185,19 @@ namespace robot_arm::sim
                 DrawModelWiresEx(robot_model.model, transform.position, transform.rotation_axis,
                                  transform.rotation_angle, robot_model.scale, DARKGRAY);
             }
-            DrawSphere(ee_transform.position, 0.5f, GREEN);
 
-            // Draw line connecting end effector to the spatial cursor position
-            DrawLine3D(ee_transform.position, cursor3D_, BLUE);
-            DrawSphere(step_target_, 0.2f, YELLOW);
+            if (enable_debug_)
+            {
+                // Draw spatial cursor
+                DrawSphere(cursor3D_, 0.5f, RED);
+                DrawSphere(ee_transform.position, 0.5f, GREEN);
+
+                // Draw line connecting end effector to the spatial cursor position
+                DrawLine3D(ee_transform.position, cursor3D_, BLUE);
+            }
 
             EndMode3D();
 
-            // Draw debug information if enabled
             if (enable_debug_)
             {
                 DrawText("Debug Mode Enabled", 10, 10, 20, DARKGRAY);
@@ -193,26 +213,19 @@ namespace robot_arm::sim
                                        " z: " + std::to_string(ee_transform.position.z);
                 DrawText(end_info.c_str(), 10, 70, 20, DARKGRAY);
 
-                // Target position information
-                std::string target_info = "Target Position: x: " +
-                                          std::to_string(step_target_.x) +
-                                          " y: " + std::to_string(step_target_.y) +
-                                          " z: " + std::to_string(step_target_.z);
-                DrawText(target_info.c_str(), 10, 100, 20, DARKGRAY);
-
                 // Camera information
                 std::string camera_info = "Camera Position: x: " +
                                           std::to_string(camera_.position.x) +
                                           " y: " + std::to_string(camera_.position.y) +
                                           " z: " + std::to_string(camera_.position.z);
-                DrawText(camera_info.c_str(), 10, 130, 20, DARKGRAY);
+                DrawText(camera_info.c_str(), 10, 100, 20, DARKGRAY);
 
                 // Spatial cursor information
                 std::string cursor_info = "Cursor Position: x: " +
                                           std::to_string(cursor3D_.x) +
                                           " y: " + std::to_string(cursor3D_.y) +
                                           " z: " + std::to_string(cursor3D_.z);
-                DrawText(cursor_info.c_str(), 10, 160, 20, DARKGRAY);
+                DrawText(cursor_info.c_str(), 10, 130, 20, DARKGRAY);
             }
 
             EndDrawing();

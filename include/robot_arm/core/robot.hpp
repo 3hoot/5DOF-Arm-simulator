@@ -27,15 +27,7 @@ namespace robot_arm::core
         bool setJointSetting(size_t joint_index, double setting);
 
         // IK methods
-        // This one is hardcoded for THIS particular robot arm, but can be generalized later
-        Eigen::Matrix<double, 6, 3> computeJacobian3() const;
-        Eigen::Vector3d computeJointChanges3(const Eigen::Vector3d &pos_err, double lambda) const;
-        // Computes the twist vector for the robot arm to reach a target transform
-        Eigen::Vector<double, 6> computePositionTwist(const Eigen::Matrix4d &target_transform) const;
-
-        // Solves the inverse kinematics for the robot arm to reach a target pose
-        bool solveIK(const Eigen::Matrix4d &target_pose,
-                     int max_iters, double tolerance);
+        bool solveIK(const Eigen::Matrix4d &target_pose);
 
     private:
         std::vector<Joint> joints_ = {};                            // List of joints in the robot arm

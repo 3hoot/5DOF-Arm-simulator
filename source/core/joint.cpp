@@ -36,6 +36,12 @@ namespace robot_arm::core
             setting_ = setting; // Update the current setting
             return true;        // Successfully set the new setting
 
+        case JointType::Special:
+
+            // For special joints, the setting doesn't affect the DH parameters,
+            setting_ = setting; // Update the current setting
+            return true;        // Successfully set the new setting
+
         default:
             return false; // Unsupported joint type
         }

@@ -24,7 +24,7 @@ namespace robot_arm::sim
         Simulator(core::Robot &robot, bool enable_debug,
                   int window_width, int window_height, const std::string_view window_title,
                   float camera_fovy, Vector3 camera_position, Vector3 camera_target, Vector3 camera_up,
-                  int camera_projection);
+                  int camera_projection, float object_radius, float object_mounting_distance);
         Simulator(core::Robot &robot, bool use_config);
         ~Simulator();
 
@@ -54,6 +54,13 @@ namespace robot_arm::sim
 
         // Spatial cursor for the simulator
         Vector3 cursor3D_; // Current position of the cursor in the world
+
+        // Primitive object parameters
+        bool object_spawned_ = false;
+        bool object_attached_ = false;
+        Vector3 object_position_;
+        float object_radius_;
+        float object_mounting_distance_;
     };
 }
 
