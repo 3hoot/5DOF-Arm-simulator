@@ -21,7 +21,7 @@ namespace robot_arm::core
         if (type_ == JointType::Static)
             return false; // Static joints cannot have their settings changed
 
-        if (setting < setting_range_.first || setting > setting_range_.second)
+        if (setting <= setting_range_.first || setting >= setting_range_.second)
             return false; // Setting out of range
 
         // Prepare a new set of DH parameters based on the current setting
@@ -33,12 +33,6 @@ namespace robot_arm::core
 
             new_params.theta += setting; // Update the theta parameter for revolute joints
             transformation_matrix_ = utils::calculateTransformationMatrix(new_params);
-            setting_ = setting; // Update the current setting
-            return true;        // Successfully set the new setting
-
-        case JointType::Special:
-
-            // For special joints, the setting doesn't affect the DH parameters,
             setting_ = setting; // Update the current setting
             return true;        // Successfully set the new setting
 

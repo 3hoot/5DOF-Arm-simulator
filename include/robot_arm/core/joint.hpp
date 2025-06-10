@@ -20,8 +20,7 @@ namespace robot_arm::core
     enum class JointType
     {
         Static,
-        Revolute,
-        Special // Special joint type for end effectors, allows to move a gripper or tool
+        Revolute
     };
 
     class Joint

@@ -6,7 +6,7 @@ int main()
 {
     using namespace robot_arm;
     core::Robot robot(core::config::ROBOT_JOINTS);
-    sim::Simulator simulator(robot, true);
+    sim::Simulator simulator(robot);
 
     simulator.run();
 
