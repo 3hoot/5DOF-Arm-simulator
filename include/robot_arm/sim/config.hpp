@@ -76,7 +76,7 @@ namespace robot_arm::sim::config
     constexpr utils::Transform PRIMITIVE_CUBE_LOCAL_TRANSFORM =
         {{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 90.0f};
 
-    constexpr int MAX_PRIMITIVES = 2;        // Maximum number of primitives in the simulator
+    constexpr int MAX_PRIMITIVES = 10;       // Maximum number of primitives in the simulator
     constexpr double PRIMITIVE_RADIUS = 2.5; // Radius of the sphere primitive (in cm)
 }
 
